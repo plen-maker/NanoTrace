@@ -1,0 +1,91 @@
+# benchpeek - handoff notes for Claude Code
+
+Carries over what a fresh session (e.g. on macOS) can't derive from the code.
+The README and `docs/plugin-sdk.md` cover the features themselves.
+
+## Working with this user
+- Writes Hungarian, casual, lots of typos: reply in Hungarian, read for intent.
+- Wants to design the UI themselves. Offer ideas and options; don't hand over
+  finished designs. `/design` returned 403 for this account.
+- Often away: keep going on clearly established work, but ask before pushing
+  anything new, rewriting history, or touching git config.
+
+## Commands
+- Run: `cargo run -p benchpeek-app`
+- `cargo test` needs prebuilt WASM plugins first:
+  `scripts/build-plugin.sh ascii-kv-wasm ascii-kv` and
+  `scripts/build-can-dbc-py.sh` (needs `pip install componentize-py` on PATH).
+  `tests/can_dbc.rs` takes ~130 s: each test instantiates CPython-in-WASM.
+- Hardware test, `#[ignore]`d: `cargo test -p benchpeek-app --bin benchpeek -- --ignored usb_read_loop_receives_a_real_device_response`
+  needs an ST-Link at USB 0483:3753.
+
+## Design decisions that aren't obvious from the code
+- Every source feeds bytes to the `Decoder` trait. CAN frames are rendered as
+  candump lines `<id>#<hex>\n` in `source.rs::can_frame_line`, so no second
+  decoder ABI exists.
+- WIT `constructor(config: option<string>)`: the host reads the config file
+  (e.g. a .dbc) because components are built `--stub-wasi` and have no
+  filesystem. `benchpeek-wasm-host` registers no WASI imports.
+- `can-dbc-py` masks DBC `BO_` ids with `0x1FFFFFFF`: DBC sets bit 31 on
+  extended ids, SocketCAN's `raw_id()` strips it.
+- `SequenceRunner` treats a signal older than 3 s as no data, so a dead
+  transport can't leave a step passed on a frozen value.
+
+## Open items
+- ~~**macOS build is expected to fail**~~ Fixed on `mono-workspace-ui`
+  (2026-09-18, macOS): `socketcan` is now a Linux-only dependency and
+  `can_session` / `list_can_interfaces` have non-Linux stubs. The crate builds
+  and runs on macOS; `nusb`/`serialport` compile there but were never tried
+  against real hardware. Not yet merged to `main`.
+- Branch `origin/mono-workspace-ui` holds a separate monochrome "Workspace UI"
+  (`src/ws/`, `--classic` runs the old cockpit). Everything it shows is demo
+  data (`src/ws/demo.rs`) and labelled `DEMO DATA` in the UI; it is not wired
+  to the real engine. It has been seen running on macOS (see Workspace UI
+  status below). Merging to `main` also makes it the default front end
+  (`--classic` keeps the old one), so decide that deliberately.
+- Deliberately skipped from a self-review: device scans (`list_ports`,
+  `list_can_interfaces`, `list_usb_devices`) block the UI thread; a decoder
+  registry to replace the `DecoderKind` match; a shared picker widget;
+  validating `hold_secs >= timeout_secs`; `can-raw`'s `u64 as f64` precision loss.
+
+## Environment notes
+- The Linux side had no display, so no UI change was ever seen running, only
+  built and unit-tested. On macOS, run the app and look at it.
+- Blender scenes are in `tools/blender/` (base model `Benchpeek_STM32MP257F-DK.blend`,
+  `..._USB_OTG_board_fade_60fps.blend`, `..._USB_OTG_isolated_60fps.blend`); all were
+  saved with **Blender 5.2** (4.5 opens them but loses the EEVEE engine setting). The
+  intro movie shown in the app is the fade scene re-aimed by `retarget_usba.py` at CN19
+  (dual USB-A host port) with a USB-A plug built in the script. History of the target
+  port (all user statements, 2026-09-21): CN15 (OTG) - "the board cannot read from it";
+  CN21 (ST-LINK) - "power only"; final answer: USB-A. The idea: benchpeek runs on the
+  board and reads the device plugged into the board's USB host. The 89 ST STEP source
+  models (58 MB) and two intermediate iterations stayed on the Linux side under
+  `~/Documents/Codex/2026-09-10/csa/`. On the build server Blender 5.2.2 sits in
+  `~/blender/`; a full render takes ~6 min.
+- Git identity was unset on the Linux side; commits there are authored
+  `Unknown <ddnemet@ddnemet.tail6ed0b4.ts.net>`. Set `user.name`/`user.email`
+  on the Mac.
+
+## Workspace UI status (added 2026-09-20, macOS session)
+- Built on request in one session, from a written spec (the reference image
+  never arrived, so nothing was compared pixel-for-pixel against it).
+- Screenshots of every state: `BENCHPEEK_SHOT_DIR=shots cargo run -p benchpeek-app`
+  (2560x1600 PNGs, exits by itself). `cargo test -p benchpeek-app ws::` runs its
+  unit tests without the WASM plugins.
+- `src/ws/`: `mod.rs` (state, chrome), `pages.rs`, `files.rs`, `overlays.rs`,
+  `widgets.rs`, `theme.rs`, `demo.rs`, `bg.rs`. Fonts/icons in `assets/fonts`.
+- Connection-guide animation: see the Blender note above; the app plays
+  `assets/board_intro.bpk` (real model, USB-A). The guide texts in `onboarding.rs`
+  and `ws/overlays.rs` say USB-A / CN19.
+- Live mode (2026-09-20): Devices -> Custom Board -> Connect, or
+  `BENCHPEEK_LIVE=user@host` (+ `BENCHPEEK_SSH_KEY`), streams a real device's
+  journal and CPU/RAM/disk into the Live monitor (`src/ws/live.rs`, reusing
+  `LogWatcher`/`StatsWatcher`). Tried against the build server. Files, Sessions
+  and diagnostics are still demo. Also fixed a `df` parsing bug in `yocto.rs`
+  (the "Use%" header was picked instead of the data line).
+- Yocto: see `meta-meerkat` branch `benchpeek-recipe` (recipe installs a
+  prebuilt aarch64 binary; the tree needs Rust >= 1.95, scarthgap has 1.75).
+  `scripts/cross-build-aarch64.sh` builds it against an existing recipe sysroot.
+- Known gaps: Tab can reach widgets behind an open overlay; Files/Sessions/rules
+  have no real backend; the UI was only checked at 1280x800 on a Mac, not on the
+  target board (the board was unreachable when the ipk was built).

@@ -1,0 +1,15 @@
+/target
+*.jsonl
+# in case a plugin crate is ever built standalone (outside the workspace)
+plugins/*/target/
+plugins/*/Cargo.lock
+__pycache__/
+/shots
+/tools/blender/frames
+/target-glow
+/shots-glow
+/shots-live
+/tools/blender/*.bpk
+/shots-anim
+# Blender leaves a .blend1 backup next to every .blend it saves
+*.blend1
