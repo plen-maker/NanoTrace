@@ -1,6 +1,6 @@
 //! Files page: breadcrumb path, search, list/grid switch, sortable table.
 
-use eframe::egui::{self, Align2, Color32, Id, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
+use eframe::egui::{self, Align2, Id, Pos2, Rect, Sense, Stroke, StrokeKind, Ui, Vec2};
 
 use super::demo::{self, Node};
 use super::theme::*;
@@ -125,14 +125,14 @@ impl Workspace {
 
         // ---- search + view switch
         let vs = Rect::from_min_size(Pos2::new(r.right() - 96.0, r.top()), Vec2::new(96.0, 44.0));
-        p.rect_filled(vs, cr(12.0), Color32::from_white_alpha(10));
+        p.rect_filled(vs, cr(12.0), wash(10));
         p.rect_stroke(vs, cr(12.0), Stroke::new(1.0, border()), StrokeKind::Inside);
         for (k, glyph, grid) in [(0, ic::LIST, false), (1, ic::LAYOUT_GRID, true)] {
             let seg = Rect::from_min_size(vs.min + Vec2::new(k as f32 * 48.0, 0.0), Vec2::new(48.0, 44.0));
             let resp = ui.interact(seg, Id::new(("viewsw", k)), Sense::click());
             let on = self.grid_view == grid;
             let t = hv(ui, Id::new(("viewsw_t", k)), on, 160.0);
-            p.rect_filled(seg.shrink(4.0), cr(9.0), Color32::from_white_alpha((t * 44.0) as u8));
+            p.rect_filled(seg.shrink(4.0), cr(9.0), wash((t * 44.0) as u8));
             icon(&p, glyph, seg.center(), 18.0, mix(TEXT3, TEXT, t.max(if resp.hovered() { 0.6 } else { 0.0 })));
             if resp.has_focus() {
                 focus_ring(&p, seg.shrink(4.0), 9.0);
@@ -142,7 +142,7 @@ impl Workspace {
             }
         }
         let sb = Rect::from_min_size(Pos2::new(vs.left() - 14.0 - 260.0, r.top()), Vec2::new(260.0, 44.0));
-        p.rect_filled(sb, cr(12.0), Color32::from_white_alpha(10));
+        p.rect_filled(sb, cr(12.0), wash(10));
         p.rect_stroke(sb, cr(12.0), Stroke::new(1.0, border()), StrokeKind::Inside);
         icon(&p, ic::SEARCH, Pos2::new(sb.left() + 24.0, sb.center().y), 17.0, TEXT3);
         let mut sui = ui.new_child(
@@ -220,7 +220,7 @@ impl Workspace {
                     if sel {
                         pt.rect_filled(rect, cr(10.0), SELECTED);
                     } else if resp.hovered() {
-                        pt.rect_filled(rect, cr(10.0), Color32::from_white_alpha(9));
+                        pt.rect_filled(rect, cr(10.0), wash(9));
                     }
                     let cy = rect.center().y;
                     icon(pt, if e.dir { ic::FOLDER } else { ic::FILE_TEXT }, Pos2::new(rect.left() + 28.0, cy), 18.0, if sel { TEXT } else { TEXT2 });
@@ -258,7 +258,7 @@ impl Workspace {
                     ui.memory_mut(|m| m.request_focus(id));
                 }
                 let pt = ui.painter();
-                pt.rect_filled(rect, cr(12.0), if sel { SELECTED } else if resp.hovered() { Color32::from_white_alpha(12) } else { Color32::from_white_alpha(6) });
+                pt.rect_filled(rect, cr(12.0), if sel { SELECTED } else if resp.hovered() { wash(12) } else { wash(6) });
                 icon(pt, if e.dir { ic::FOLDER } else { ic::FILE_TEXT }, Pos2::new(rect.center().x, rect.top() + 50.0), 34.0, if sel { TEXT } else { TEXT2 });
                 text(pt, Pos2::new(rect.center().x, rect.top() + 96.0), Align2::CENTER_CENTER, &e.name, font(13.5, "inter_medium"), TEXT);
                 text(pt, Pos2::new(rect.center().x, rect.top() + 116.0), Align2::CENTER_CENTER, if e.dir { "Folder".to_string() } else { demo::fmt_size(e.size) }, font(12.0, "inter"), TEXT3);

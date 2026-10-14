@@ -14,7 +14,6 @@ macro_rules! issues {
     };
 }
 
-mod bg;
 mod files;
 mod live;
 mod demo;
@@ -33,10 +32,18 @@ use live::Live;
 use theme::*;
 use widgets::*;
 
+/// macOS: the window has no native titlebar strip (see `main.rs`) - the
+/// traffic lights float directly over our own chrome instead. This pushes
+/// the sidebar logo/nav and the topbar content down far enough to clear them.
+#[cfg(target_os = "macos")]
+pub const TITLE_INSET: f32 = 26.0;
+#[cfg(not(target_os = "macos"))]
+pub const TITLE_INSET: f32 = 0.0;
+
 pub const DESIGN_W: f32 = 1280.0;
 pub const DESIGN_H: f32 = 800.0;
 pub const SIDEBAR_W: f32 = 232.0;
-pub const TOPBAR_H: f32 = 58.0;
+pub const TOPBAR_H: f32 = 58.0 + TITLE_INSET;
 pub const MARGIN: f32 = 44.0;
 pub const DIAG_W: f32 = 330.0;
 
@@ -109,7 +116,6 @@ pub struct Workspace {
     nav_y: Tween,
 
     pub demo: Demo,
-    bg: Option<egui::TextureHandle>,
 
     // Live monitor
     pub paused: bool,
@@ -195,13 +201,13 @@ impl Default for Shot {
 impl Workspace {
     pub fn new(cc: &eframe::CreationContext<'_>) -> Self {
         install_fonts(&cc.egui_ctx);
-        let mut visuals = egui::Visuals::dark();
+        let mut visuals = egui::Visuals::light();
         visuals.panel_fill = BG;
         visuals.override_text_color = Some(TEXT);
-        visuals.selection.bg_fill = Color32::from_white_alpha(60);
+        visuals.selection.bg_fill = Color32::from_black_alpha(40);
         visuals.selection.stroke = Stroke::new(1.0, TEXT);
-        cc.egui_ctx.set_theme(egui::ThemePreference::Dark);
-        cc.egui_ctx.set_visuals_of(egui::Theme::Dark, visuals);
+        cc.egui_ctx.set_theme(egui::ThemePreference::Light);
+        cc.egui_ctx.set_visuals_of(egui::Theme::Light, visuals);
 
         let reduce = std::env::var_os("BENCHPEEK_REDUCE_MOTION").is_some();
         set_reduce_motion(reduce);
@@ -211,7 +217,6 @@ impl Workspace {
             page_t0: -10.0,
             nav_y: Tween::new(86.0),
             demo: Demo::new(),
-            bg: Some(bg::make(&cc.egui_ctx)),
             paused: false,
             capture_on: true,
             selected_log: None,
@@ -342,12 +347,16 @@ impl Workspace {
         );
         self.shot.design = full;
         let painter = ui.painter().clone();
-        if let Some(t) = &self.bg {
-            painter.image(t.id(), avail, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
-        } else {
-            painter.rect_filled(avail, 0.0, BG);
-        }
-        // Sidebar and top-bar fills reach the window edges.
+        // Opaque page canvas - everything except the sidebar column and the
+        // topbar row, which `sidebar()`/`topbar()` paint translucently so
+        // macOS vibrancy (see `clear_color`, `Workspace::new`) shows through.
+        painter.rect_filled(
+            Rect::from_min_max(Pos2::new(full.left() + SIDEBAR_W, full.top() + TOPBAR_H), avail.max),
+            0.0,
+            BG,
+        );
+        // Reaches the window edges, not just the design rect, so there's no
+        // gap when the window isn't exactly 16:10.
         painter.rect_filled(
             Rect::from_min_max(avail.min, Pos2::new(full.left() + SIDEBAR_W, avail.bottom())),
             0.0,
@@ -367,7 +376,7 @@ impl Workspace {
             self.diag_panel(ui, Rect::from_min_max(Pos2::new(full.right() - dw, full.top() + TOPBAR_H), full.max), now);
         }
         self.sidebar(ui, full, now);
-        self.topbar(ui, full, now);
+        self.topbar(ui, full, avail, now);
         self.overlays(&ctx, full, now);
 
         // Display brightness: a real, full-screen dim.
@@ -437,23 +446,26 @@ impl Workspace {
         );
 
         // Brand.
-        icon(&p, ic::BOX, Pos2::new(full.left() + 36.0, full.top() + 36.0), 22.0, TEXT);
-        text(&p, Pos2::new(full.left() + 58.0, full.top() + 36.0), Align2::LEFT_CENTER, "Workspace", font(17.0, "inter_medium"), TEXT);
+        let brand_y = full.top() + 28.0 + TITLE_INSET;
+        icon(&p, ic::BOX, Pos2::new(full.left() + 28.0, brand_y), 18.0, TEXT);
+        text(&p, Pos2::new(full.left() + 46.0, brand_y), Align2::LEFT_CENTER, "Workspace", font(14.0, "inter_medium"), TEXT);
 
-        // Selection pill first, so rows draw on top of it.
-        let nav_top = full.top() + 86.0;
-        let settings_top = full.bottom() - 16.0 - 64.0 - 12.0 - 50.0;
+        // Selection pill first, so rows draw on top of it. Row height/metrics
+        // follow System Settings' denser sidebar rather than the original 50px rows.
+        const ROW_H: f32 = 38.0;
+        let nav_top = full.top() + 64.0 + TITLE_INSET;
+        let settings_top = full.bottom() - 16.0 - 64.0 - 12.0 - ROW_H;
         let y_of = |pg: Page| -> f32 {
             match pg {
                 Page::Settings => settings_top,
-                other => nav_top + Page::NAV.iter().position(|q| *q == other).unwrap() as f32 * 50.0,
+                other => nav_top + Page::NAV.iter().position(|q| *q == other).unwrap() as f32 * ROW_H,
             }
         };
         self.nav_y.set(y_of(self.page) - full.top(), now, 200.0);
         let py = full.top() + self.nav_y.get(now);
         p.rect_filled(
-            Rect::from_min_size(Pos2::new(full.left() + 12.0, py), Vec2::new(SIDEBAR_W - 24.0, 50.0)),
-            cr(12.0),
+            Rect::from_min_size(Pos2::new(full.left() + 12.0, py), Vec2::new(SIDEBAR_W - 24.0, ROW_H)),
+            cr(9.0),
             SELECTED,
         );
 
@@ -461,18 +473,18 @@ impl Workspace {
         let mut items: Vec<Page> = Page::NAV.to_vec();
         items.push(Page::Settings);
         for pg in items {
-            let r = Rect::from_min_size(Pos2::new(full.left() + 12.0, y_of(pg)), Vec2::new(SIDEBAR_W - 24.0, 50.0));
+            let r = Rect::from_min_size(Pos2::new(full.left() + 12.0, y_of(pg)), Vec2::new(SIDEBAR_W - 24.0, ROW_H));
             let resp = ui.interact(r, Id::new(("nav", pg.label())), Sense::click());
             let h = hv(ui, Id::new(("navh", pg.label())), resp.hovered() && pg != self.page, 120.0);
             if h > 0.0 {
-                p.rect_filled(r, cr(12.0), Color32::from_white_alpha((h * 12.0) as u8));
+                p.rect_filled(r, cr(9.0), wash((h * 12.0) as u8));
             }
             let sel = pg == self.page;
             let col = if sel { TEXT } else { mix(TEXT2, TEXT, h) };
-            icon(&p, pg.icon(), Pos2::new(r.left() + 28.0, r.center().y), 20.0, col);
-            text(&p, Pos2::new(r.left() + 54.0, r.center().y), Align2::LEFT_CENTER, pg.label(), font(15.0, if sel { "inter_medium" } else { "inter" }), col);
+            icon(&p, pg.icon(), Pos2::new(r.left() + 22.0, r.center().y), 15.0, col);
+            text(&p, Pos2::new(r.left() + 42.0, r.center().y), Align2::LEFT_CENTER, pg.label(), font(13.0, if sel { "inter_medium" } else { "inter" }), col);
             if resp.has_focus() {
-                focus_ring(&p, r, 12.0);
+                focus_ring(&p, r, 9.0);
             }
             if resp.clicked() {
                 go_to = Some(pg);
@@ -489,8 +501,8 @@ impl Workspace {
         );
         let resp = ui.interact(dr, Id::new("dev_sel"), Sense::click());
         let h = hv(ui, Id::new("dev_sel_h"), resp.hovered() || self.device_menu, 120.0);
-        p.rect_filled(dr, cr(14.0), mix(PANEL, RAISED, h));
-        p.rect_stroke(dr, cr(14.0), Stroke::new(1.0, Color32::from_white_alpha(30 + (h * 20.0) as u8)), egui::StrokeKind::Inside);
+        p.rect_filled(dr, cr(14.0), PANEL);
+        p.rect_stroke(dr, cr(14.0), Stroke::new(1.0, wash(30 + (h * 20.0) as u8)), egui::StrokeKind::Inside);
         icon(&p, ic::MICROCHIP, Pos2::new(dr.left() + 28.0, dr.center().y), 22.0, TEXT);
         text(&p, Pos2::new(dr.left() + 50.0, dr.center().y - 9.0), Align2::LEFT_CENTER, "STM32MP257F-DK", font(13.5, "inter_medium"), TEXT);
         text(&p, Pos2::new(dr.left() + 50.0, dr.center().y + 10.0), Align2::LEFT_CENTER, "2 devices", font(12.0, "inter"), TEXT2);
@@ -507,13 +519,19 @@ impl Workspace {
         }
     }
 
-    fn topbar(&mut self, ui: &mut Ui, full: Rect, now: f64) {
+    fn topbar(&mut self, ui: &mut Ui, full: Rect, avail: Rect, now: f64) {
         let p = ui.painter().clone();
         let bar = Rect::from_min_max(
             Pos2::new(full.left() + SIDEBAR_W, full.top()),
             Pos2::new(full.right(), full.top() + TOPBAR_H),
         );
-        p.rect_filled(bar, 0.0, Color32::from_rgba_unmultiplied(9, 11, 12, 150));
+        // Fill reaches the window's top/right edges (not just the design
+        // rect), matching the sidebar - no gap when the window isn't 16:10.
+        let fill_rect = Rect::from_min_max(
+            Pos2::new(bar.left(), avail.top()),
+            Pos2::new(avail.right(), bar.bottom()),
+        );
+        p.rect_filled(fill_rect, 0.0, Color32::from_rgba_unmultiplied(255, 255, 255, 215));
         p.line_segment([Pos2::new(bar.left(), bar.bottom() - 0.5), Pos2::new(bar.right(), bar.bottom() - 0.5)], Stroke::new(1.0, hairline()));
         let cy = bar.center().y;
         let x = bar.left() + MARGIN;
@@ -534,7 +552,7 @@ impl Workspace {
         let cluster = Rect::from_min_max(Pos2::new(rx - 108.0, cy - 22.0), Pos2::new(rx + 4.0, cy + 22.0));
         let resp = ui.interact(cluster, Id::new("cc_trigger"), Sense::click());
         let h = hv(ui, Id::new("cc_trigger_h"), resp.hovered() || self.cc_open, 120.0);
-        p.rect_filled(cluster.shrink2(Vec2::new(0.0, 4.0)), cr(10.0), Color32::from_white_alpha((h * 22.0) as u8));
+        p.rect_filled(cluster.shrink2(Vec2::new(0.0, 4.0)), cr(10.0), wash((h * 22.0) as u8));
         let ccol = mix(TEXT2, TEXT, h);
         icon(&p, ic::USB, Pos2::new(cluster.left() + 24.0, cy), 17.0, ccol);
         icon(&p, if self.wifi_on { ic::WIFI } else { ic::WIFI_OFF }, Pos2::new(cluster.left() + 56.0, cy), 17.0, ccol);
@@ -559,8 +577,8 @@ impl Workspace {
             let hit = Rect::from_center_size(chip.center(), Vec2::new(chip.width(), 44.0));
             let resp = ui.interact(hit, Id::new("issue_chip"), Sense::click());
             let h = hv(ui, Id::new("issue_chip_h"), resp.hovered(), 120.0);
-            p.rect_filled(chip, cr(17.0), Color32::from_white_alpha(10 + (h * 14.0) as u8));
-            p.rect_stroke(chip, cr(17.0), Stroke::new(1.0, Color32::from_white_alpha(40 + (h * 30.0) as u8)), egui::StrokeKind::Inside);
+            p.rect_filled(chip, cr(17.0), wash(10 + (h * 14.0) as u8));
+            p.rect_stroke(chip, cr(17.0), Stroke::new(1.0, wash(40 + (h * 30.0) as u8)), egui::StrokeKind::Inside);
             icon(&p, ic::TRIANGLE_ALERT, Pos2::new(chip.left() + 19.0, cy), 15.0, TEXT);
             text(&p, Pos2::new(chip.left() + 34.0, cy), Align2::LEFT_CENTER, label, font(13.0, "inter_medium"), TEXT);
             if resp.has_focus() {
@@ -582,7 +600,7 @@ impl Workspace {
         let g = p.layout_no_wrap(badge.clone(), font(11.0, "inter_semibold"), TEXT2);
         let w = g.size().x + 20.0;
         let chip = Rect::from_min_max(Pos2::new(rx - w, cy - 11.0), Pos2::new(rx, cy + 11.0));
-        p.rect_stroke(chip, cr(11.0), Stroke::new(1.0, Color32::from_white_alpha(60)), egui::StrokeKind::Inside);
+        p.rect_stroke(chip, cr(11.0), Stroke::new(1.0, wash(60)), egui::StrokeKind::Inside);
         text(&p, chip.center(), Align2::CENTER_CENTER, badge, font(11.0, "inter_semibold"), if self.live.is_some() && self.page == Page::Monitor { TEXT } else { TEXT2 });
     }
 
@@ -719,8 +737,14 @@ impl Workspace {
 
 impl eframe::App for Workspace {
     fn ui(&mut self, ui: &mut Ui, _frame: &mut eframe::Frame) {
+        // `frame()` paints every surface itself; this just needs to not flash
+        // the default dark clear color on the first frame.
         egui::CentralPanel::default()
-            .frame(egui::Frame::new().fill(BG))
+            .frame(egui::Frame::new().fill(Color32::TRANSPARENT))
             .show(ui, |ui| self.frame(ui));
+    }
+
+    fn clear_color(&self, _visuals: &egui::Visuals) -> [f32; 4] {
+        BG.to_normalized_gamma_f32()
     }
 }

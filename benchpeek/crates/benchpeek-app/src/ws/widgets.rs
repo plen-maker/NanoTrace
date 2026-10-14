@@ -13,28 +13,22 @@ pub fn cr(r: f32) -> CornerRadius {
     CornerRadius::same(r.round().clamp(0.0, 255.0) as u8)
 }
 
-/// Soft shadow + fill + hairline border + faint top highlight.
+/// Soft shadow + fill + hairline border. Elevation reads through the shadow,
+/// not a highlight line - there's nothing brighter than white to catch light.
 pub fn panel(p: &Painter, rect: Rect, radius: f32, fill: Color32) {
     p.add(
-        Shadow { offset: [0, 10], blur: 28, spread: 0, color: Color32::from_black_alpha(110) }
+        Shadow { offset: [0, 6], blur: 22, spread: 0, color: Color32::from_black_alpha(22) }
             .as_shape(rect, cr(radius)),
     );
     p.rect_filled(rect, cr(radius), fill);
     p.rect_stroke(rect, cr(radius), Stroke::new(1.0, border()), StrokeKind::Inside);
-    p.line_segment(
-        [
-            Pos2::new(rect.left() + radius, rect.top() + 1.0),
-            Pos2::new(rect.right() - radius, rect.top() + 1.0),
-        ],
-        Stroke::new(1.0, Color32::from_white_alpha(26)),
-    );
 }
 
 pub fn focus_ring(p: &Painter, rect: Rect, radius: f32) {
     p.rect_stroke(
         rect.expand(3.0),
         cr(radius + 3.0),
-        Stroke::new(2.0, TEXT),
+        Stroke::new(2.0, PRIMARY),
         StrokeKind::Outside,
     );
 }
@@ -78,11 +72,11 @@ pub fn ghost_button(ui: &mut Ui, id: Id, rect: Rect, label: &str, leading: Optio
     );
     let rr = scale_rect(rect, press);
     let p = ui.painter();
-    p.rect_filled(rr, cr(12.0), Color32::from_white_alpha((h * 16.0) as u8));
+    p.rect_filled(rr, cr(12.0), wash((h * 16.0) as u8));
     p.rect_stroke(
         rr,
         cr(12.0),
-        Stroke::new(1.0, Color32::from_white_alpha(36 + (h * 26.0) as u8)),
+        Stroke::new(1.0, wash(36 + (h * 26.0) as u8)),
         StrokeKind::Inside,
     );
     let font_ = font(14.0, "inter_medium");
@@ -108,7 +102,7 @@ pub fn icon_button(ui: &mut Ui, id: Id, center: Pos2, glyph: char, size: f32, co
     p.rect_filled(
         Rect::from_center_size(center, egui::vec2(36.0, 36.0)),
         cr(10.0),
-        Color32::from_white_alpha((h * 20.0) as u8),
+        wash((h * 20.0) as u8),
     );
     icon(p, glyph, center, size, mix(color, TEXT, h));
     if r.has_focus() {
@@ -127,9 +121,11 @@ pub fn toggle(ui: &mut Ui, id: Id, right_center: Pos2, on: bool) -> Response {
     let r = ui.interact(hit, id, Sense::click());
     let t = hv(ui, id.with("t"), on, 180.0);
     let p = ui.painter();
-    p.rect_filled(rect, cr(14.0), mix(Color32::from_rgb(0x3A, 0x3E, 0x40), PRIMARY, t));
+    p.rect_filled(rect, cr(14.0), mix(Color32::from_rgb(0xD4, 0xD7, 0xDB), PRIMARY, t));
     let kx = rect.left() + 14.0 + t * 18.0;
-    p.circle_filled(Pos2::new(kx, rect.center().y), 10.0, mix(Color32::from_rgb(0xD8, 0xDA, 0xD9), ON_PRIMARY, t));
+    let kc = Pos2::new(kx, rect.center().y);
+    p.circle_filled(kc, 10.0, Color32::WHITE);
+    p.circle_stroke(kc, 10.0, Stroke::new(1.0, wash(18)));
     if r.has_focus() {
         focus_ring(p, rect, 14.0);
     }
@@ -165,7 +161,7 @@ pub fn slider(ui: &mut Ui, id: Id, rect: Rect, value: &mut f32) -> bool {
     let h = hv(ui, id.with("h"), r.hovered() || r.dragged(), 120.0);
     let p = ui.painter();
     let track = Rect::from_center_size(rect.center(), egui::vec2(rect.width(), 4.0));
-    p.rect_filled(track, cr(2.0), Color32::from_rgb(0x3A, 0x3E, 0x40));
+    p.rect_filled(track, cr(2.0), Color32::from_rgb(0xD4, 0xD7, 0xDB));
     let fill = Rect::from_min_max(track.min, Pos2::new(rect.left() + rect.width() * *value, track.max.y));
     p.rect_filled(fill, cr(2.0), mix(TEXT2, TEXT, h));
     let kc = Pos2::new(rect.left() + rect.width() * *value, rect.center().y);
@@ -186,13 +182,13 @@ pub fn segments(p: &Painter, rect: Rect, segments: usize, filled: f32) {
         p.rect_filled(
             Rect::from_min_size(Pos2::new(x, rect.top()), egui::vec2(w, rect.height())),
             cr(2.0),
-            if on { TEXT } else { Color32::from_white_alpha(28) },
+            if on { TEXT } else { wash(28) },
         );
     }
 }
 
 pub fn progress(p: &Painter, rect: Rect, frac: f32) {
-    p.rect_filled(rect, cr(rect.height() / 2.0), Color32::from_white_alpha(28));
+    p.rect_filled(rect, cr(rect.height() / 2.0), wash(28));
     let f = Rect::from_min_size(rect.min, egui::vec2(rect.width() * frac.clamp(0.0, 1.0), rect.height()));
     p.rect_filled(f, cr(rect.height() / 2.0), TEXT);
 }

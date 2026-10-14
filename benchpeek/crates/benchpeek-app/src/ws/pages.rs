@@ -16,10 +16,10 @@ fn heading(p: &egui::Painter, r: Rect, title: &str, sub: &str) -> f32 {
 
 /// Monochrome line-art of a development board (own drawing, no vendor photo).
 fn draw_board(p: &egui::Painter, r: Rect) {
-    let line = Stroke::new(1.3, Color32::from_white_alpha(150));
-    let soft = Stroke::new(1.0, Color32::from_white_alpha(70));
+    let line = Stroke::new(1.3, wash(150));
+    let soft = Stroke::new(1.0, wash(70));
     let pcb = Rect::from_center_size(r.center(), Vec2::new(r.width() * 0.92, r.height() * 0.86));
-    p.rect_filled(pcb, cr(9.0), Color32::from_white_alpha(10));
+    p.rect_filled(pcb, cr(9.0), wash(10));
     p.rect_stroke(pcb, cr(9.0), line, StrokeKind::Inside);
     for c in [pcb.left_top(), pcb.right_top(), pcb.left_bottom(), pcb.right_bottom()] {
         let d = Vec2::new(if c.x < pcb.center().x { 9.0 } else { -9.0 }, if c.y < pcb.center().y { 9.0 } else { -9.0 });
@@ -28,7 +28,7 @@ fn draw_board(p: &egui::Painter, r: Rect) {
     // SoC + package rings.
     let soc = Rect::from_center_size(pcb.center() + Vec2::new(-6.0, -2.0), Vec2::new(46.0, 46.0));
     p.rect_stroke(soc.expand(6.0), cr(4.0), soft, StrokeKind::Inside);
-    p.rect_filled(soc, cr(4.0), Color32::from_white_alpha(28));
+    p.rect_filled(soc, cr(4.0), wash(28));
     p.rect_stroke(soc, cr(4.0), line, StrokeKind::Inside);
     p.circle_stroke(soc.left_top() + Vec2::new(8.0, 8.0), 2.5, soft);
     // Memory chips.
@@ -53,13 +53,9 @@ fn card_bg(ui: &mut Ui, id: Id, rect: Rect) -> egui::Response {
     let resp = ui.interact(rect, id, Sense::click());
     let h = hv(ui, id.with("h"), resp.hovered(), 120.0);
     let p = ui.painter();
-    p.add(egui::epaint::Shadow { offset: [0, 8], blur: 24, spread: 0, color: Color32::from_black_alpha(90) }.as_shape(rect, cr(14.0)));
-    p.rect_filled(rect, cr(14.0), mix(PANEL, RAISED, h));
-    p.rect_stroke(rect, cr(14.0), Stroke::new(1.0, Color32::from_white_alpha(32 + (h * 26.0) as u8)), StrokeKind::Inside);
-    p.line_segment(
-        [Pos2::new(rect.left() + 14.0, rect.top() + 1.0), Pos2::new(rect.right() - 14.0, rect.top() + 1.0)],
-        Stroke::new(1.0, Color32::from_white_alpha(24)),
-    );
+    p.add(egui::epaint::Shadow { offset: [0, 5], blur: 18, spread: 0, color: Color32::from_black_alpha(16 + (h * 10.0) as u8) }.as_shape(rect, cr(14.0)));
+    p.rect_filled(rect, cr(14.0), PANEL);
+    p.rect_stroke(rect, cr(14.0), Stroke::new(1.0, wash(32 + (h * 26.0) as u8)), StrokeKind::Inside);
     if resp.has_focus() {
         focus_ring(p, rect, 14.0);
     }
@@ -89,7 +85,7 @@ impl Workspace {
         text(&p, Pos2::new(tx, dp.top() + 38.0), Align2::LEFT_CENTER, "yocto-devkit", font(24.0, "inter_medium"), TEXT);
         text(&p, Pos2::new(tx, dp.top() + 70.0), Align2::LEFT_CENTER, "STM32MP257F-DK", font(14.0, "inter"), TEXT2);
         let pill = Rect::from_min_size(Pos2::new(tx, dp.top() + 96.0), Vec2::new(170.0, 30.0));
-        p.rect_stroke(pill, cr(15.0), Stroke::new(1.0, Color32::from_white_alpha(50)), StrokeKind::Inside);
+        p.rect_stroke(pill, cr(15.0), Stroke::new(1.0, wash(50)), StrokeKind::Inside);
         p.circle_filled(Pos2::new(pill.left() + 16.0, pill.center().y), 4.0, TEXT);
         text(&p, Pos2::new(pill.left() + 30.0, pill.center().y), Align2::LEFT_CENTER, "Connected via USB", font(13.0, "inter"), TEXT2);
         let br = Rect::from_center_size(Pos2::new(dp.right() - 28.0 - 90.0, dp.center().y), Vec2::new(180.0, 50.0));
@@ -112,7 +108,7 @@ impl Workspace {
             let cr_ = Rect::from_min_size(Pos2::new(r.left() + i as f32 * (cw + gap), y), Vec2::new(cw, 88.0));
             let resp = card_bg(ui, Id::new(("qa", i)), cr_);
             let p = ui.painter();
-            p.circle_filled(Pos2::new(cr_.left() + 42.0, cr_.center().y), 22.0, Color32::from_white_alpha(14));
+            p.circle_filled(Pos2::new(cr_.left() + 42.0, cr_.center().y), 22.0, wash(14));
             icon(p, *glyph, Pos2::new(cr_.left() + 42.0, cr_.center().y), 20.0, TEXT);
             text(p, Pos2::new(cr_.left() + 78.0, cr_.center().y - 10.0), Align2::LEFT_CENTER, *title, font(15.0, "inter_medium"), TEXT);
             text(p, Pos2::new(cr_.left() + 78.0, cr_.center().y + 11.0), Align2::LEFT_CENTER, *sub, font(13.0, "inter"), TEXT2);
@@ -224,7 +220,7 @@ impl Workspace {
             bp.rect_filled(
                 Rect::from_min_max(Pos2::new(x, cpu.bottom() - 20.0 - h), Pos2::new(x + bar_w, cpu.bottom() - 20.0)),
                 cr(1.5),
-                if last { TEXT } else { Color32::from_white_alpha(70) },
+                if last { TEXT } else { wash(70) },
             );
         }
 
@@ -263,8 +259,8 @@ impl Workspace {
         if let Some(rep) = &self.replay {
             let banner = Rect::from_min_size(inner.min, Vec2::new(inner.width(), 44.0));
             p.rect_filled(banner, cr(10.0), Color32::from_white_alpha(12));
-            icon(&p, ic::HISTORY, Pos2::new(banner.left() + 24.0, banner.center().y), 17.0, TEXT);
-            text(&p, Pos2::new(banner.left() + 46.0, banner.center().y), Align2::LEFT_CENTER, format!("Replaying session: {}", rep.name), font(13.5, "inter_medium"), TEXT);
+            icon(&p, ic::HISTORY, Pos2::new(banner.left() + 24.0, banner.center().y), 17.0, CONSOLE_TEXT);
+            text(&p, Pos2::new(banner.left() + 46.0, banner.center().y), Align2::LEFT_CENTER, format!("Replaying session: {}", rep.name), font(13.5, "inter_medium"), CONSOLE_TEXT);
             if ghost_button(ui, Id::new("back_live"), Rect::from_center_size(Pos2::new(banner.right() - 76.0, banner.center().y), Vec2::new(128.0, 36.0)), "Back to live", None).clicked() {
                 self.replay = None;
                 self.selected_log = None;
@@ -316,18 +312,21 @@ impl Workspace {
                 let cy = rect.center().y;
                 let err = l.level == Level::Error;
                 let warn = l.level == Level::Warn;
+                // Selected rows sit on a light chip; everything else sits on
+                // the dark console backing - pick the matching text pool.
+                let (c1, c2, c3) = if sel { (TEXT, TEXT2, TEXT3) } else { (CONSOLE_TEXT, CONSOLE_TEXT2, CONSOLE_TEXT3) };
                 if err {
-                    icon(pt, ic::CIRCLE_ALERT, Pos2::new(rect.left() + 18.0, cy), 14.0, TEXT);
+                    icon(pt, ic::CIRCLE_ALERT, Pos2::new(rect.left() + 18.0, cy), 14.0, c1);
                 } else if warn {
-                    icon(pt, ic::TRIANGLE_ALERT, Pos2::new(rect.left() + 18.0, cy), 13.0, TEXT2);
+                    icon(pt, ic::TRIANGLE_ALERT, Pos2::new(rect.left() + 18.0, cy), 13.0, c2);
                 }
                 let mono = font(12.5, "mono");
-                text(pt, Pos2::new(rect.left() + 38.0, cy), Align2::LEFT_CENTER, demo::fmt_ts(l.ms), mono.clone(), if sel || err { TEXT2 } else { TEXT3 });
+                text(pt, Pos2::new(rect.left() + 38.0, cy), Align2::LEFT_CENTER, demo::fmt_ts(l.ms), mono.clone(), if sel || err { c2 } else { c3 });
                 let clip = pt.with_clip_rect(rect);
-                text(&clip, Pos2::new(rect.left() + 168.0, cy), Align2::LEFT_CENTER, ellipsize_mono(&l.proc_, 12.5, 188.0), mono.clone(), if err || sel { TEXT } else { TEXT2 });
+                text(&clip, Pos2::new(rect.left() + 168.0, cy), Align2::LEFT_CENTER, ellipsize_mono(&l.proc_, 12.5, 188.0), mono.clone(), if err || sel { c1 } else { c2 });
                 let mx = rect.left() + 168.0 + 196.0;
                 let msg = ellipsize_mono(&l.msg, 12.5, rect.right() - mx - 14.0);
-                text(&clip, Pos2::new(mx, cy), Align2::LEFT_CENTER, msg, mono, if err || sel { TEXT } else { TEXT2 });
+                text(&clip, Pos2::new(mx, cy), Align2::LEFT_CENTER, msg, mono, if err || sel { c1 } else { c2 });
                 if resp.clicked() {
                     clicked = Some(l.id);
                 }
@@ -369,7 +368,7 @@ impl Workspace {
     pub(super) fn diag_panel(&mut self, ui: &mut Ui, rect: Rect, now: f64) {
         let p = ui.painter().with_clip_rect(rect);
         let x0 = rect.right() - DIAG_W;
-        p.rect_filled(rect, 0.0, Color32::from_rgba_unmultiplied(0x14, 0x17, 0x18, 245));
+        p.rect_filled(rect, 0.0, Color32::from_rgba_unmultiplied(0xFF, 0xFF, 0xFF, 250));
         p.line_segment([Pos2::new(rect.left() + 0.5, rect.top()), Pos2::new(rect.left() + 0.5, rect.bottom())], Stroke::new(1.0, border()));
         text(&p, Pos2::new(x0 + 24.0, rect.top() + 34.0), Align2::LEFT_CENTER, "Diagnostics", font(16.0, "inter_medium"), TEXT);
         if icon_button(ui, Id::new("diag_close"), Pos2::new(x0 + DIAG_W - 34.0, rect.top() + 34.0), ic::X, 18.0, TEXT2).clicked() {
@@ -390,7 +389,7 @@ impl Workspace {
             if sel {
                 p.rect_filled(row, cr(12.0), SELECTED);
             } else if h > 0.0 {
-                p.rect_filled(row, cr(12.0), Color32::from_white_alpha((h * 12.0) as u8));
+                p.rect_filled(row, cr(12.0), wash((h * 12.0) as u8));
             }
             let is = &issues!(self)[i];
             icon(&p, ic::TRIANGLE_ALERT, Pos2::new(row.left() + 24.0, row.center().y), 17.0, if sel { TEXT } else { TEXT2 });
@@ -422,7 +421,7 @@ impl Workspace {
         let g = p.layout(is.observed.clone(), font(12.0, "mono"), TEXT, DIAG_W - 48.0 - 24.0);
         let bh = g.size().y + 20.0;
         let box_ = Rect::from_min_size(Pos2::new(x0 + 24.0, y), Vec2::new(DIAG_W - 48.0, bh));
-        p.rect_filled(box_, cr(10.0), Color32::from_white_alpha(12));
+        p.rect_filled(box_, cr(10.0), wash(22));
         p.galley(box_.min + Vec2::new(12.0, 10.0), g, TEXT);
         y += bh + 14.0;
         text(&p, Pos2::new(x0 + 24.0, y + 6.0), Align2::LEFT_CENTER, "PROBABLE CAUSE  ·  inferred", font(10.5, "inter_semibold"), TEXT3);

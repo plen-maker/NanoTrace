@@ -1,5 +1,6 @@
 //! Monochrome design tokens, fonts, easing and small animation helpers for
-//! the workspace UI. Colours are exactly the palette from the design brief.
+//! the workspace UI. Light palette: white surfaces, near-black ink, elevation
+//! carried by shadow/border rather than by going brighter than white.
 
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -9,23 +10,42 @@ use eframe::egui::{
     Pos2, Rect, Ui,
 };
 
-pub const BG: Color32 = Color32::from_rgb(0x09, 0x0B, 0x0C);
-pub const SIDEBAR: Color32 = Color32::from_rgb(0x12, 0x15, 0x16);
-pub const PANEL: Color32 = Color32::from_rgb(0x17, 0x1A, 0x1C);
-pub const RAISED: Color32 = Color32::from_rgb(0x20, 0x24, 0x26);
-pub const SELECTED: Color32 = Color32::from_rgb(0x33, 0x37, 0x39);
-pub const TEXT: Color32 = Color32::from_rgb(0xF2, 0xF2, 0xF0);
-pub const TEXT2: Color32 = Color32::from_rgb(0xA2, 0xA6, 0xA8);
-pub const TEXT3: Color32 = Color32::from_rgb(0x72, 0x78, 0x7B);
-pub const PRIMARY: Color32 = Color32::from_rgb(0xEC, 0xED, 0xEB);
-pub const ON_PRIMARY: Color32 = Color32::from_rgb(0x0D, 0x0F, 0x10);
+pub const BG: Color32 = Color32::from_rgb(0xF6, 0xF7, 0xF8);
+/// Slightly translucent so it still reads as a distinct "glass-ish" layer
+/// over `BG` even without real window vibrancy (tried once, reverted - see
+/// `main.rs`).
+pub const SIDEBAR: Color32 = Color32::from_rgba_premultiplied(0xD4, 0xD5, 0xD6, 0xD4);
+pub const PANEL: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
+pub const RAISED: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
+/// Pale accent tint, not grey - matches how macOS tints a selected row
+/// instead of just darkening it.
+pub const SELECTED: Color32 = Color32::from_rgb(0xDD, 0xEC, 0xFF);
+pub const TEXT: Color32 = Color32::from_rgb(0x15, 0x18, 0x1B);
+pub const TEXT2: Color32 = Color32::from_rgb(0x5B, 0x61, 0x68);
+pub const TEXT3: Color32 = Color32::from_rgb(0x9A, 0xA1, 0xA8);
+/// macOS' own light-mode system blue (`NSColor.systemBlue` / `#007AFF`) -
+/// the one accent color a native app spends, against an otherwise fully
+/// neutral grey/white/black scheme. Drives primary buttons, toggle "on",
+/// Control Center's enabled icons and the focus ring.
+pub const PRIMARY: Color32 = Color32::from_rgb(0x00, 0x7A, 0xFF);
+pub const ON_PRIMARY: Color32 = Color32::from_rgb(0xFF, 0xFF, 0xFF);
 
-/// rgba(255,255,255,0.14)
+/// Text for the two surfaces that stay dark on purpose (Live monitor log,
+/// Quick Look file viewer) - everywhere else TEXT/TEXT2/TEXT3 already work.
+pub const CONSOLE_TEXT: Color32 = Color32::from_rgb(0xE8, 0xE9, 0xEA);
+pub const CONSOLE_TEXT2: Color32 = Color32::from_rgb(0xA6, 0xAB, 0xAF);
+pub const CONSOLE_TEXT3: Color32 = Color32::from_rgb(0x74, 0x79, 0x7D);
+
+/// rgba(0,0,0,0.11) - hairline border on a white surface.
 pub fn border() -> Color32 {
-    Color32::from_white_alpha(36)
+    Color32::from_black_alpha(28)
 }
 pub fn hairline() -> Color32 {
-    Color32::from_white_alpha(20)
+    Color32::from_black_alpha(16)
+}
+/// Surface wash for hover/press/divider tints - darkens, since the theme is light.
+pub fn wash(a: u8) -> Color32 {
+    Color32::from_black_alpha(a)
 }
 
 static REDUCE_MOTION: AtomicBool = AtomicBool::new(false);

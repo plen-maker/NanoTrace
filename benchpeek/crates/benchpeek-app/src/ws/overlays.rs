@@ -13,7 +13,8 @@ use super::widgets::*;
 use super::{CcView, Page, Workspace};
 use crate::icons as ic;
 
-const INNER: Color32 = Color32::from_rgb(0x27, 0x2B, 0x2D);
+const INNER: Color32 = Color32::from_rgb(0xF1, 0xF2, 0xF5);
+const INNER_HOVER: Color32 = Color32::from_rgb(0xE6, 0xE8, 0xEB);
 
 fn layer(ctx: &Context, id: &'static str, order: Order, t: f32, pivot: Pos2, scale0: f32, dy: f32, add: impl FnOnce(&mut Ui)) {
     egui::Area::new(Id::new(id)).order(order).fixed_pos(Pos2::ZERO).constrain(false).show(ctx, |ui| {
@@ -29,7 +30,7 @@ fn menu_row(ui: &mut Ui, id: Id, rect: Rect, glyph: char, title: &str, sub: Opti
     let resp = ui.interact(rect, id, Sense::click());
     let h = hv(ui, id.with("h"), resp.hovered(), 120.0);
     let p = ui.painter();
-    p.rect_filled(rect, cr(10.0), Color32::from_white_alpha((h * 20.0) as u8));
+    p.rect_filled(rect, cr(10.0), wash((h * 20.0) as u8));
     icon(p, glyph, Pos2::new(rect.left() + 24.0, rect.center().y), 18.0, TEXT);
     match sub {
         Some(s) => {
@@ -56,9 +57,9 @@ fn cc_tile(ui: &mut Ui, id: &'static str, rect: Rect, glyph: char, title: &str, 
     let r2 = ui.interact(chev, Id::new((id, "chev")), Sense::click());
     let h = hv(ui, Id::new((id, "h")), r1.hovered() || r2.hovered(), 120.0);
     let p = ui.painter();
-    p.rect_filled(rect, cr(14.0), mix(INNER, Color32::from_rgb(0x30, 0x34, 0x36), h));
+    p.rect_filled(rect, cr(14.0), mix(INNER, INNER_HOVER, h));
     let cx = Pos2::new(rect.left() + 38.0, rect.center().y);
-    p.circle_filled(cx, 21.0, if on { PRIMARY } else { Color32::from_white_alpha(22) });
+    p.circle_filled(cx, 21.0, if on { PRIMARY } else { wash(22) });
     icon(p, glyph, cx, 21.0, if on { ON_PRIMARY } else { TEXT });
     text(p, Pos2::new(rect.left() + 70.0, rect.center().y - 9.0), Align2::LEFT_CENTER, title, font(14.0, "inter_medium"), TEXT);
     text(p, Pos2::new(rect.left() + 70.0, rect.center().y + 11.0), Align2::LEFT_CENTER, status, font(12.0, "inter"), TEXT2);
@@ -181,7 +182,7 @@ impl Workspace {
         let mut go_devices = false;
         let capture_before = capture;
         layer(ctx, "control_center", Order::Foreground, t, Pos2::new(rect.right(), rect.top()), 0.98, -8.0, |ui| {
-            panel(ui.painter(), rect, 20.0, Color32::from_rgb(0x1B, 0x1E, 0x20));
+            panel(ui.painter(), rect, 20.0, RAISED);
             let x = rect.left() + 14.0;
             let iw = rect.width() - 28.0;
             match view {
@@ -200,7 +201,7 @@ impl Workspace {
                     let resp = ui.interact(er, Id::new("cc_eth"), Sense::click());
                     let h = hv(ui, Id::new("cc_eth_h"), resp.hovered(), 120.0);
                     let p = ui.painter();
-                    p.rect_filled(er, cr(14.0), mix(INNER, Color32::from_rgb(0x30, 0x34, 0x36), h));
+                    p.rect_filled(er, cr(14.0), mix(INNER, INNER_HOVER, h));
                     p.circle_filled(Pos2::new(er.left() + 30.0, er.center().y), 17.0, PRIMARY);
                     icon(p, ic::ETHERNET_PORT, Pos2::new(er.left() + 30.0, er.center().y), 17.0, ON_PRIMARY);
                     text(p, Pos2::new(er.left() + 58.0, er.center().y - 9.0), Align2::LEFT_CENTER, "Ethernet", font(14.0, "inter_medium"), TEXT);
@@ -261,7 +262,7 @@ impl Workspace {
                         let resp = ui.interact(rr, Id::new(("cc_net", *name)), Sense::click());
                         let h = hv(ui, Id::new(("cc_net_h", *name)), resp.hovered(), 120.0);
                         let p = ui.painter();
-                        p.rect_filled(rr, cr(12.0), mix(INNER, Color32::from_rgb(0x30, 0x34, 0x36), h));
+                        p.rect_filled(rr, cr(12.0), mix(INNER, INNER_HOVER, h));
                         icon(p, if is_wifi { ic::WIFI } else { ic::BLUETOOTH }, Pos2::new(rr.left() + 28.0, rr.center().y), 18.0, if dim { TEXT3 } else { TEXT });
                         text(p, Pos2::new(rr.left() + 54.0, rr.center().y - 9.0), Align2::LEFT_CENTER, *name, font(14.0, "inter_medium"), if dim { TEXT3 } else { TEXT });
                         text(p, Pos2::new(rr.left() + 54.0, rr.center().y + 10.0), Align2::LEFT_CENTER, *st, font(12.0, "inter"), TEXT2);
@@ -390,9 +391,9 @@ impl Workspace {
                 for i in range {
                     let (r, _) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 22.0), Sense::hover());
                     let pt = ui.painter().with_clip_rect(r);
-                    text(&pt, Pos2::new(r.left() + 40.0, r.center().y), Align2::RIGHT_CENTER, i + 1, font(12.0, "mono"), TEXT3);
+                    text(&pt, Pos2::new(r.left() + 40.0, r.center().y), Align2::RIGHT_CENTER, i + 1, font(12.0, "mono"), CONSOLE_TEXT3);
                     let line = ellipsize_mono(lines.get(i).copied().unwrap_or(""), 12.0, r.width() - 70.0);
-                    text(&pt, Pos2::new(r.left() + 54.0, r.center().y), Align2::LEFT_CENTER, line, font(12.0, "mono"), TEXT);
+                    text(&pt, Pos2::new(r.left() + 54.0, r.center().y), Align2::LEFT_CENTER, line, font(12.0, "mono"), CONSOLE_TEXT);
                 }
             });
         });
@@ -575,7 +576,7 @@ impl Workspace {
                 let _ = pw;
                 text(ui.painter(), Pos2::new(rect.left() + 32.0, y + 6.0), Align2::LEFT_CENTER, label, font(12.0, "inter_medium"), TEXT2);
                 let field = Rect::from_min_size(Pos2::new(rect.left() + 32.0, y + 20.0), Vec2::new(w - 64.0, 44.0));
-                ui.painter().rect_filled(field, cr(10.0), Color32::from_rgb(0x12, 0x14, 0x15));
+                ui.painter().rect_filled(field, cr(10.0), Color32::from_rgb(0xF4, 0xF5, 0xF7));
                 ui.painter().rect_stroke(field, cr(10.0), Stroke::new(1.0, border()), egui::StrokeKind::Inside);
                 let mut fui = ui.new_child(
                     egui::UiBuilder::new()
